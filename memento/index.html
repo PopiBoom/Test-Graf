@@ -26,9 +26,10 @@ body.render #ui,body.render #start{display:none}
 <body>
 <div id="stage"><canvas id="c" width="1920" height="1080"></canvas></div>
 <div id="start"><button type="button">▶ СМОТРЕТЬ СО ЗВУКОМ</button></div>
-<div id="ui"><button id="pp" type="button">▶</button><input id="scrub" type="range" min="0" max="20" step="0.001" value="0"><span id="tc">0.00</span></div>
+<div id="ui"><button id="pp" type="button">▶</button><input id="scrub" type="range" min="0" max="40" step="0.001" value="0"><span id="tc">0.00</span></div>
 <audio id="music" src="assets/soundtrack.wav" preload="auto"></audio>
 <video id="vid" muted loop playsinline preload="auto" style="display:none"><source src="assets/kapustka.mp4" type="video/mp4"><source src="assets/kapustka.webm" type="video/webm"></video>
 <script src="motion.js"></script>
+<script src="story.js"></script>
 </body>
 </html>

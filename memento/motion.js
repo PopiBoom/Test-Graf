@@ -1,9 +1,11 @@
 'use strict';
-/* Memento Mori — KAPUSTKA. 20 с, 1920×1080.
+/* Memento Mori — KAPUSTKA. 40 с, 1920×1080.
+   0–4 пульс · 4–20 история (story.js) · 20–40 канал: сцены 2–5 работают в своих
+   исходных таймкодах 4–24 и вызываются со сдвигом CH_OFF = 16 с.
    Весь ролик — чистая функция времени drawFrame(t): одинаково работает при просмотре,
    перемотке и покадровом рендере (?render). Сквозной герой — красная линия. */
 
-const W = 1920, H = 1080, FPS = 60, DUR = 20;
+const W = 1920, H = 1080, FPS = 60, DUR = 40, CH_OFF = 16;
 const RENDER = new URLSearchParams(location.search).has('render');
 if (RENDER) document.body.classList.add('render');
 
@@ -261,10 +263,10 @@ function scene1(t) {
 /* =====================================================================
    СЦЕНА 2 · КОНТЕНТ (4–8 с): пролёт сквозь ленту постов вдоль линии-графика
    ===================================================================== */
-const CH = { chart: 430, video: 560, text: 380, gift: 470, poll: 400 };
+const CH = { chart: 430, video: 560, text: 380, gift: 470, poll: 400, quote: 360 };
 const cards = (() => {
   const r = rand(42);
-  const types = ['chart', 'video', 'text', 'gift', 'poll', 'video', 'chart', 'text', 'gift', 'video', 'poll', 'chart', 'text', 'video', 'gift', 'chart', 'video', 'text'];
+  const types = ['chart', 'video', 'text', 'gift', 'poll', 'video', 'quote', 'text', 'gift', 'video', 'poll', 'chart', 'quote', 'video', 'gift', 'chart', 'video', 'text'];
   return types.map((ty, i) => {
     const side = i % 2 ? 1 : -1;
     return { ty, side, x: side * (640 + r() * 340), y: (r() - 0.5) * 720, z: -1150 + i * 250, rot: (r() - 0.5) * 12 * DEG, seed: i * 13 + 5 };
@@ -343,11 +345,18 @@ function drawCard(c, t) {
       rr(left + i * 96, by + 150, 84, 46, 23); ctx.fillStyle = 'rgba(255,40,55,0.16)'; ctx.fill();
       ctx.font = '24px "Noto Color Emoji"'; ctx.textAlign = 'center'; ctx.fillStyle = '#fff'; ctx.fillText(e, left + i * 96 + 42, by + 174);
     });
+  } else if (c.ty === 'quote') { // реальный пост канала
+    ctx.fillStyle = '#f3eaea'; ctx.font = '600 25px "Inter Tight"'; ctx.textAlign = 'left';
+    ['В советском союзе был', 'такой ритуал — наслаждаться', 'банкой энергетика.'].forEach((l, i) => ctx.fillText(l, left, by + 14 + i * 36));
+    ['😂', '🔥'].forEach((e, i) => {
+      rr(left + i * 96, by + 136, 84, 46, 23); ctx.fillStyle = 'rgba(255,40,55,0.16)'; ctx.fill();
+      ctx.font = '24px "Noto Color Emoji"'; ctx.textAlign = 'center'; ctx.fillStyle = '#fff'; ctx.fillText(e, left + i * 96 + 42, by + 160);
+    });
   } else if (c.ty === 'gift') {
     ctx.textAlign = 'center';
     ctx.font = '104px "Noto Color Emoji"'; ctx.fillText('🎁', 0, by + 66);
     ctx.font = '700 58px "Oswald"'; ctx.fillStyle = '#ff2a3a'; ctx.shadowColor = 'rgba(255,20,40,0.8)'; ctx.shadowBlur = 18;
-    ctx.fillText('РОЗЫГРЫШ', 0, by + 178); ctx.shadowBlur = 0;
+    ctx.fillText(c.seed % 2 ? 'ТУРНИР' : 'РОЗЫГРЫШ', 0, by + 178); ctx.shadowBlur = 0;
     rr(-140, by + 222, 280, 58, 29); ctx.fillStyle = '#e0101e'; ctx.fill();
     ctx.fillStyle = '#fff'; ctx.font = '800 22px "Inter Tight"'; ctx.fillText('УЧАСТВОВАТЬ', 0, by + 252);
   } else if (c.ty === 'poll') {
@@ -420,7 +429,7 @@ function drawText2(t) {
     ctx.globalAlpha = fade * clamp(k / 0.1); ctx.scale(sc, sc);
     hotLetter(c, 300, Math.exp(-k * 4), 40);
   });
-  const L3 = lay('В ОДНОМ КАНАЛЕ', 600, 46, 'Inter Tight', 18);
+  const L3 = lay('ЛИЧНЫЙ БЛОГ С ЮМОРОМ', 600, 46, 'Inter Tight', 16);
   const wk = eOutCubic(seg(u, 1.55, 2.15));
   if (wk > 0) {
     ctx.save(); ctx.beginPath(); ctx.rect(-L3.total / 2 - 20, 140, (L3.total + 40) * wk, 80); ctx.clip();
@@ -723,6 +732,11 @@ function scene3(t) {
     hotLetter(c, 200, Math.exp(-k0 * 2.5), 40);
     ctx.restore();
   });
+  const L4 = lay('И ТУРНИРЫ ПО BRAWL STARS', 700, 40, 'Inter Tight', 10);
+  letters(L4, 0, -228, (c, i) => {
+    const k = t - 10.72 - i * 0.012; if (k <= 0) return;
+    const sp = spring(k, 2.4, 7); ctx.scale(sp, sp); ctx.fillStyle = '#ff8a92'; ctx.fillText(c, 0, 0);
+  });
   const L2 = lay('ЗАБИРАЙ СВОЁ, ПОКА ЕСТЬ ВРЕМЯ', 600, 42, 'Inter Tight', 12);
   letters(L2, 0, -300, (c, i, x) => {
     const a = smooth(seg(t - 10.6 - (x + L2.total / 2) / 4000, 0, 0.3));
@@ -785,7 +799,7 @@ function bgVideo(t, alpha) {
   ctx.restore();
   ctx.fillStyle = 'rgba(6,3,4,0.62)'; ctx.fillRect(0, 0, W, H);
 }
-const FINAL_BEATS = [16.5, 17.25, 18.0];
+const FINAL_BEATS = [16.5, 17.25, 18.0, 22.0];
 function avatarState(t) {
   const sl = 1 - eOutExpo(seg(t, 12.02, 12.75));
   let x = 330 - SL.d[0] * 260 * sl, y = -10 - SL.d[1] * 260 * sl, size = 640 * (1 + 0.12 * sl), rad = 28;
@@ -853,9 +867,9 @@ function drawOwnerText(t) {
     if (t > 14) { const g = ctx.createRadialGradient(px, 85, 0, px, 85, 40); g.addColorStop(0, 'rgba(255,255,255,0.95)'); g.addColorStop(1, 'rgba(255,40,40,0)'); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = g; ctx.fillRect(px - 40, 45, 80, 80); }
     ctx.restore();
   }
-  const L2 = lay('MEMENTO MORI · TELEGRAM', 500, 28, 'Inter Tight', 8);
+  const L2 = lay('t.me/memento_mori_osn', 600, 32, 'Inter Tight', 3);
   const a2 = smooth(seg(t, 14.1, 14.6));
-  if (a2 > 0) { ctx.globalAlpha *= a2; letters(L2, X0 + L2.total / 2, 150 + 14 * (1 - a2), c => { ctx.fillStyle = 'rgba(255,240,240,0.6)'; ctx.fillText(c, 0, 0); }); }
+  if (a2 > 0) { ctx.globalAlpha *= a2; letters(L2, X0 + L2.total / 2, 150 + 14 * (1 - a2), c => { ctx.fillStyle = 'rgba(255,225,225,0.8)'; ctx.fillText(c, 0, 0); }); }
   ctx.restore();
 }
 function drawRing(t) {
@@ -934,7 +948,8 @@ function drawFinalText(t) {
     const press = 1 - 0.07 * Math.sin(Math.PI * seg(t, 17.94, 18.14));
     ctx.save(); ctx.translate(0, 268 + (1 - clamp(sp)) * 50); ctx.scale(sp * press, sp * press);
     ctx.globalAlpha = clamp(bk / 0.15);
-    const bw = 430, bh = 86;
+    const mk = eInOut(seg(t, 18.45, 18.9)); // после клика кнопка превращается в ссылку
+    const bw = lerp(430, 600, mk), bh = 86;
     ctx.shadowColor = `rgba(255,20,40,${0.6 + 0.4 * heat})`; ctx.shadowBlur = 40 + 50 * heat;
     const g = ctx.createLinearGradient(0, -bh / 2, 0, bh / 2); g.addColorStop(0, '#ff2b3b'); g.addColorStop(1, '#c4000f');
     rr(-bw / 2, -bh / 2, bw, bh, bh / 2); ctx.fillStyle = g; ctx.fill(); ctx.shadowBlur = 0;
@@ -945,7 +960,10 @@ function drawFinalText(t) {
       ctx.restore();
     }
     ctx.fillStyle = '#fff'; ctx.font = '800 32px "Inter Tight"'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.letterSpacing = '5px'; ctx.fillText('ПОДПИСАТЬСЯ', 3, 2); ctx.letterSpacing = '0px';
+    const a1 = clamp(1 - mk * 2), a2 = clamp(mk * 2 - 1), ga = ctx.globalAlpha;
+    if (a1 > 0) { ctx.globalAlpha = ga * a1; ctx.letterSpacing = '5px'; ctx.fillText('ПОДПИСАТЬСЯ', 3, 2 - 14 * mk); }
+    if (a2 > 0) { ctx.globalAlpha = ga * a2; ctx.font = '700 34px "Inter Tight"'; ctx.letterSpacing = '1px'; ctx.fillText('t.me/memento_mori_osn', 0, 2 + 14 * (1 - a2)); }
+    ctx.letterSpacing = '0px'; ctx.globalAlpha = ga;
     ctx.restore();
   }
   const L3 = lay('Помни о смерти. Не забудь подписаться.', 500, 36, 'Inter Tight', 2);
@@ -1049,15 +1067,17 @@ function drawFrame(t) {
   ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1; ctx.filter = 'none'; ctx.globalCompositeOperation = 'source-over';
   shakeX = shakeY = 0;
   ctx.fillStyle = '#060405'; ctx.fillRect(0, 0, W, H);
+  const c = t - CH_OFF;
   if (t < 4) scene1(t);
-  else if (t < 8) scene2(t);
-  else if (t < 12) scene3(t);
-  else { scene45(t); if (t < 12.75) slashCut(t); }
+  else if (t < 20) story(t);
+  else if (c < 8) scene2(c);
+  else if (c < 12) scene3(c);
+  else { scene45(c); if (c < 12.75) slashCut(c); }
   ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.filter = 'none'; ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
   drawVignette();
   // единичные экспозиционные подъёмы на главных ударах (не строб)
   let lift = 0;
-  for (const [t0, a] of [[4.0, 0.16], [10.0, 0.2], [12.0, 0.22], [18.0, 0.16]]) lift += a * decay(t, t0, 7);
+  for (const [t0, a] of [[4.0, 0.08], [17.0, 0.16], [20.0, 0.16], [26.0, 0.2], [28.0, 0.22], [34.0, 0.16]]) lift += a * decay(t, t0, 7);
   if (lift > 0.004) { ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = `rgba(255,70,80,${lift})`; ctx.fillRect(0, 0, W, H); ctx.globalCompositeOperation = 'source-over'; }
   const fadeIn = 1 - smooth(seg(t, 0, 0.45));
   if (fadeIn > 0) { ctx.fillStyle = `rgba(0,0,0,${fadeIn})`; ctx.fillRect(0, 0, W, H); }

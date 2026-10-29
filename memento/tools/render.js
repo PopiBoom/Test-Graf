@@ -1,8 +1,8 @@
-// Покадровый рендер: node tools/render.js <outDir> [from] [to] [workers] [sub]
+// Покадровый рендер (40 с = 2400 кадров): node tools/render.js <outDir> [from] [to] [workers] [sub]
 // Требует запущенный статический сервер на :8765 из папки memento.
 const { chromium } = require('playwright');
 const fs = require('fs');
-const [out = 'frames', from = '0', to = '1199', workers = '4', sub = '5'] = process.argv.slice(2);
+const [out = 'frames', from = '0', to = '2399', workers = '4', sub = '5'] = process.argv.slice(2);
 (async () => {
   fs.mkdirSync(out, { recursive: true });
   const browser = await chromium.launch({ args: ['--disable-web-security', '--autoplay-policy=no-user-gesture-required'] });

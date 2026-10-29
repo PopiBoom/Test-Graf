@@ -1,10 +1,11 @@
-"""Синтез саундтрека Memento Mori: музыка (120 BPM, ре минор) + звуковой дизайн.
-Все события привязаны к тем же таймкодам, что и анимация (см. STORYBOARD.md)."""
+"""Синтез саундтрека Memento Mori (40 с): музыка (120 BPM, ре минор) + звуковой дизайн.
+Все события привязаны к тем же таймкодам, что и анимация (см. STORYBOARD.md).
+Блок «канал» написан в старых 20-секундных таймкодах и сдвигается на T_OFF = 16 с."""
 import sys, wave
 import numpy as np
 
 SR = 48000
-DUR = 20.0
+DUR = 40.0
 N = int(SR * DUR)
 rng = np.random.default_rng(7)
 L = np.zeros(N); R = np.zeros(N)
@@ -12,8 +13,9 @@ L = np.zeros(N); R = np.zeros(N)
 def note(n):  # MIDI -> Hz
     return 440.0 * 2 ** ((n - 69) / 12)
 
+T_OFF = 0.0
 def put(sig, t, gain=1.0, pan=0.0):
-    i = int(round(t * SR))
+    i = int(round((t + T_OFF) * SR))
     if i >= N: return
     sig = sig[: N - i] * gain
     f = min(len(sig) // 4, int(0.012 * SR))  # микро-фейд против щелчков на обрыве
@@ -150,8 +152,10 @@ D, F, A, Bb, G, C, E = 62, 65, 69, 70, 67, 72, 64
 Dm = [note(50), note(57), note(62), note(65)]
 
 # дрон/пэд: весь ролик, громче в финале
-p = pad(Dm, 20.0, 700)
-env = np.interp(np.arange(N) / SR, [0, 1.5, 4, 8, 12, 16, 18, 19.2, 20], [0, .35, .3, .22, .25, .3, .55, .35, 0])
+p = pad(Dm, DUR, 700)
+env = np.interp(np.arange(N) / SR,
+                [0, 1.5, 4, 8, 12, 12.5, 16.9, 17.0, 19.95, 20.05, 28, 32, 34, 36, 39, 40],
+                [0, .35, .3, .2, .15, .28, .3, 0, 0, .22, .25, .3, .55, .4, .3, 0])
 put(p * env, 0, 0.55)
 
 # 0–4: тиканье часов и сердце
@@ -163,6 +167,97 @@ put(reverse_cym(1.0), 3.0, 0.8)
 put(riser(1.0, 120, 600), 3.0, 0.4)
 
 # бит
+# ================= ИСТОРИЯ (4–20 с) =================
+def piano(freq, d=2.2):
+    t = tt(d); s = np.zeros_like(t)
+    for h, a in ((1, 1), (2, .45), (3, .22), (4, .12), (5, .06)):
+        s += a * np.sin(2 * np.pi * freq * h * t * (1 + 0.0004 * h * h)) * np.exp(-t * (1.2 + 0.8 * h))
+    s += band(noise(d), 1500, 6000) * 0.02 * np.exp(-t / 0.01)
+    return s * np.minimum(1, t / 0.003) * 0.28
+
+def coin_ring(g=1.0, d=0.9):
+    t = tt(d)
+    return sum(np.sin(2 * np.pi * f * t) * np.exp(-t / dd) * a for f, dd, a in
+               ((3150, .35, .3), (4870, .25, .2), (6720, .18, .12), (8410, .1, .08))) * g * np.minimum(1, t / 0.001)
+
+def snare(g=1.0):
+    d = 0.22; t = tt(d); n = band(noise(d), 1500, 9000); n /= np.abs(n).max()
+    return (n * np.exp(-t / 0.045) + np.sin(2 * np.pi * 210 * t) * np.exp(-t / 0.03) * 0.6) * 0.5 * g
+
+def tom(f=85, g=1.0):
+    t = tt(0.4); s = np.sin(2 * np.pi * np.cumsum(f + 40 * np.exp(-t / 0.04)) / SR) * np.exp(-t / 0.16)
+    return np.tanh(s * 1.4) * 0.7 * g
+
+def powerdown(d=0.5):
+    t = tt(d); f = 320 * (35 / 320) ** (t / d)
+    s = np.sin(2 * np.pi * np.cumsum(f) / SR) + 0.3 * np.sign(np.sin(2 * np.pi * np.cumsum(f * 1.5) / SR))
+    return s * (1 - t / d) * 0.35
+
+# 4.0 — падение: глухой удар и спуск
+put(impact(2.4, 32), 4.0, 0.9); put(powerdown(0.6), 4.0, 0.6)
+# I. С НУЛЯ (4–8): дождь, грустное пианино, монета
+rain = band(noise(4.2), 900, 7000); rain /= np.abs(rain).max()
+put(rain * np.interp(tt(4.2), [0, .4, 3.6, 4.2], [0, 1, 1, 0]) * 0.06, 4.0, 1.0)
+for tn, m in ((4.5, 74), (5.0, 72), (5.5, 69), (6.0, 65), (6.5, 67), (7.0, 69), (7.5, 62)):
+    put(piano(note(m)), tn, 0.9, pan=0.15)
+put(piano(note(50), 3.0), 4.5, 0.8, -0.2); put(piano(note(46), 3.0), 6.0, 0.8, -0.2)
+put(coin_ring(1.0), 5.0, 0.8, 0.3); put(coin_ring(0.5), 5.35, 0.8, 0.3)
+tc, gap = 5.45, 0.09  # монета крутится и «дребезжит» всё чаще (диск Эйлера)
+while tc < 6.85:
+    put(coin_ring(0.18, 0.08), tc, 0.8, 0.3); tc += gap; gap = max(0.012, gap * 0.9)
+put(coin_ring(0.7), 6.88, 0.8, 0.3)
+put(bell(note(98), 1.2), 7.38, 0.5, 0.2); put(whoosh(0.6, 400, 7000, 0.85), 7.45, 0.9)
+# II. МОСКВА-СИТИ (8–12.5): вспышка, грув, подъём
+put(impact(1.6, 40), 8.0, 0.7); put(sparkle(1.4, 30, 5), 8.0, 0.9)
+def kbar(t0, root, roll=False):
+    for st in (0, 6, 10):
+        put(kick(), t0 + st * 0.125, 0.85)
+    for st in (0, 6):
+        put(bass808(note(root - 12)), t0 + st * 0.125, 0.7)
+    for st in (4, 12):
+        put(clap(), t0 + st * 0.125, 0.5)
+    steps = list(range(0, 16, 2)) if not roll else list(range(0, 12, 2)) + [12, 13, 14, 14.5, 15, 15.5]
+    for j, st in enumerate(steps):
+        put(hat(), t0 + st * 0.125, 0.4 if st % 4 == 0 else 0.28, pan=0.3 if j % 2 else -0.2)
+kbar(8, 50); kbar(10, 53, roll=True)
+arp = [D + 12, F + 12, A + 12, C + 12, A + 12, F + 12, A + 12, C + 24]
+for k in range(32):
+    put(bell(note(arp[k % 8] if k < 16 else arp[k % 8] + 3), 0.5), 8.0 + k * 0.125, 0.22, pan=-0.5 + (k % 8) / 8)
+put(riser(1.6, 200, 1800), 10.4, 0.45)
+put(powerdown(0.45), 12.0, 1.0)
+# III. СЛУЖБА (12.5–17): марш, жетон, ровный пульс
+for k in range(8):
+    put(coin_ring(0.25, 0.15), 12.5 + k * 0.06 + 0.02 * (k % 3), 0.7, 0.4)
+for bar in (12.5, 14.5):
+    for st in range(16):
+        acc = st % 4 == 0
+        if acc or st in (2, 3, 6, 7, 10, 14, 15):
+            put(snare(1.0 if acc else 0.35), bar + st * 0.125, 0.75, pan=0.1)
+    for b in range(4):
+        put(tom(80 if b % 2 == 0 else 70), bar + b * 0.5, 0.9)
+    put(bass808(note(38), 1.6), bar, 0.55)
+for tb in (13.5, 14.5, 15.5, 16.5):
+    put(heart(0.6), tb - 0.02, 0.7)
+for k in range(16):  # дробь-крещендо в 17.0
+    put(snare(0.3 + 0.7 * k / 16), 16.5 + k * 0.03125, 0.75)
+put(riser(0.5, 300, 1500), 16.5, 0.5)
+# IV. НЕ УНЫВАЮ (17–20): мажорный подъём, энергия
+put(impact(1.8, 44), 17.0, 1.0); put(sparkle(1.8, 34, 8), 17.0, 1.0)
+for t0, chord in ((17, (58, 62, 65)), (18, (60, 64, 67)), (19, (62, 66, 69))):
+    pp = pad([note(m) for m in chord], 1.05, 1600)
+    put(pp * np.interp(tt(1.05), [0, .05, .95, 1.05], [0, 1, 1, 0]), t0, 0.32)
+    for k, m in enumerate(chord + (chord[0] + 12,)):
+        put(bell(note(m + 12), 0.9), t0 + k * 0.125, 0.3, pan=-0.3 + 0.2 * k)
+    for st in (0, 4, 8, 12):
+        put(kick(), t0 + st * 0.0625, 0.8)
+    for st in (2, 6):
+        put(clap(), t0 + st * 0.125, 0.5)
+    for st in range(0, 8):
+        put(hat(), t0 + st * 0.125, 0.3, pan=0.3)
+put(reverse_cym(1.0), 19.0, 0.9); put(riser(1.0, 200, 1600), 19.0, 0.4)
+
+# ================= КАНАЛ (старые таймкоды 4–20 → 20–36) =================
+T_OFF = 16.0
 bars = {4: 50, 6: 46, 8: 43, 10: 45, 12: 50, 14: 46, 16: 43}
 def beat_bar(t0, root, kicks=(0, 6, 10), claps=(4, 12), hats=True, roll=False, bass=True, kgain=1.0):
     for s in kicks:
@@ -220,6 +315,15 @@ put(bass808(note(38), 2.0), 18.0, 0.8)
 for k, m in enumerate([D, F, A, D + 12]):
     put(bell(note(m + 12), 2.0), 18.0 + k * 0.06, 0.45, pan=-0.3 + 0.2 * k)
 put(sparkle(1.8, 18, 11), 18.05, 0.8)
+put(bell(note(D + 24), 1.4), 18.5, 0.4, 0.2)  # ссылка проявляется в кнопке
+T_OFF = 0.0
+
+# ================= ФИНАЛ (36–40): тихий грув, последний удар сердца =================
+for k in range(16):
+    put(hat(), 36.0 + k * 0.125, 0.16, pan=0.3 if k % 2 else -0.2)
+for k, m in enumerate([D + 12, A + 12, F + 12, D + 12]):
+    put(bell(note(m), 1.6), 36.0 + k * 0.5, 0.25, pan=-0.3 + 0.2 * k)
+put(heart(0.9), 37.98, 0.9); put(impact(2.0, 36), 38.0, 0.5)
 
 # ---------- мастер ----------
 mix = np.stack([L, R], 1)
